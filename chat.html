@@ -48,6 +48,7 @@
     (function () {
       const uuid = window.localStorage.getItem('uuid');
       const username = window.localStorage.getItem('username');
+      const newMessage = document.getElementById('new-message');
 
       if (!uuid) {
         window.localStorage.setItem('uuid', uuidv4());
@@ -56,6 +57,12 @@
       if (username) {
         document.getElementById('username').value = username;
       }
+
+      newMessage.addEventListener('keypress', (e) => {
+        if (e.code === 'Enter') {
+          sendMessage();
+        }
+      });
     })();
 
     ws.addEventListener('error', console.error);
