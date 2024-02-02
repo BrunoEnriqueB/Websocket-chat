@@ -25,7 +25,7 @@ const genericErrorResponse = async function (req, res) {
 const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/') {
     try {
-      const file = await fs.readFile(path.join(__dirname, '/index.html'));
+      const file = await fs.readFile(path.join(__dirname, '/chat.html'));
       res.setHeader('Content-Type', 'text/html');
       res.writeHead(200);
       return res.end(file);
