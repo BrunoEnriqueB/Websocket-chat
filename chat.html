@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat de teste</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="input-group">
+        <input
+          required=""
+          type="text"
+          name="username"
+          autocomplete="off"
+          class="input"
+          id="username"
+        />
+        <label class="user-label">Name</label>
+      </div>
+      <div class="messages-container">
+        <div class="messages"></div>
+        <input
+          type="text"
+          name="new-message"
+          id="new-message"
+          class="input"
+          placeholder="Escreva sua mensagem aqui"
+        />
+      </div>
+
+      <button type="submit" onclick="sendMessage()">Enviar mensagem</button>
+    </div>
+  </body>
+
+  <script>
+    const ws = new WebSocket('ws://localhost:3000');
+    const id = Math.random;
+    const handlers = {
+      'load-all-messages': loadAllMessages,
+      'new-message': loadNewMessage
+    };
+
+    (function () {
+      const uuid = window.localStorage.getItem('uuid');
+      const username = window.localStorage.getItem('username');
+
+      if (!uuid) {
+        window.localStorage.setItem('uuid', uuidv4());
+      }
+
+      if (username) {
+        document.getElementById('username').value = username;
+      }
+    })();
+
+    ws.addEventListener('error', console.error);
+
+    ws.addEventListener('open', () => {
+      console.log('Web Socket connected');
+      emitEvent('new-user');
+    });
+
+    ws.addEventListener('message', receiveEvent);
+
+    ws.addEventListener('close', () => {
+      console.log('Web Socket disconnected');
+    });
+
+    function sendMessage() {
+      const username = document.getElementById('username').value;
+      const newMessage = document.getElementById('new-message');
+
+      if (!username) {
+        return window.alert('É necessário preencher o nome');
+      }
+
+      if (!newMessage.value) {
+        return window.alert('É necessário preencher a mensagem');
+      }
+
+      window.localStorage.setItem('username', username);
+
+      emitEvent('new-message', { username, newMessage: newMessage.value });
+
+      newMessage.value = '';
+    }
+
+    function emitEvent(eventName, data = {}) {
+      const object = {
+        userId: window.localStorage.getItem('uuid'),
+        eventName,
+        data
+      };
+
+      ws.send(JSON.stringify(object));
+    }
+
+    function receiveEvent(messageEvent) {
+      const data = JSON.parse(messageEvent.data);
+      const { eventName } = data;
+
+      return handlers[eventName](data.data);
+    }
+
+    function loadAllMessages(messages) {
+      const messagesContainer = document.querySelector('.messages');
+      const userId = window.localStorage.getItem('uuid');
+
+      messages.forEach((message) => {
+        addMessage(messagesContainer, userId, message);
+      });
+    }
+
+    function loadNewMessage(message) {
+      const messages = document.querySelector('.messages');
+      const userId = window.localStorage.getItem('uuid');
+
+      addMessage(messages, userId, message);
+    }
+
+    function uuidv4() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+        /[xy]/g,
+        function (c) {
+          const r = (Math.random() * 16) | 0,
+            v = c == 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        }
+      );
+    }
+
+    function addMessage(container, userId, messageObject) {
+      const sameUserId = messageObject.userId === userId;
+      const messageTime = `<div class="message-time">${new Date(
+        messageObject.timestamp
+      ).toLocaleDateString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: 'numeric',
+        minute: 'numeric',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      })}</div>`;
+
+      const messageName = `<span>${messageObject.username}</span>`;
+
+      const messageText = `<div class="message-text">${messageObject.message}</div>`;
+
+      const message = `<div class="message ${
+        sameUserId ? 'my' : 'other'
+      }-message">
+      <div class="message-informations">${
+        sameUserId ? messageTime + messageName : messageName + messageTime
+      }</div>
+      ${messageText}
+      </div>`;
+
+      container.innerHTML += message;
+    }
+  </script>
+
+  <style>
+    * {
+      outline: 0;
+      border: 0;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .container {
+      margin: 100px auto;
+      width: 1000px;
+      height: 800px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 50px;
+    }
+
+    .input-group {
+      position: relative;
+    }
+
+    .input {
+      border: solid 1.5px #9e9e9e;
+      border-radius: 1rem;
+      background: none;
+      padding: 1rem;
+      font-size: 1rem;
+      color: #000;
+      transition: border 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .user-label {
+      position: absolute;
+      left: 15px;
+      color: #e8e8e8;
+      pointer-events: none;
+      transform: translateY(1rem);
+      transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .input:focus,
+    input:valid {
+      outline: none;
+      border: 1.5px solid #1a73e8;
+    }
+
+    .input:focus ~ label,
+    input:valid ~ label {
+      transform: translateY(-50%) scale(0.8);
+      background-color: #fff;
+      padding: 0 0.2em;
+      color: #2196f3;
+    }
+
+    #username {
+      width: 200px;
+    }
+
+    .messages-container {
+      width: 70%;
+      height: 500px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-radius: 20px;
+      box-shadow: 0px 0 20px 6px rgb(0 0 0 / 20%);
+    }
+
+    .messages-container .messages {
+      height: 80%;
+      width: 100%;
+      padding: 40px 20px 0px 20px;
+      overflow-y: auto;
+      position: relative;
+      word-wrap: break-word;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .messages-container .messages .message {
+      max-width: 60%;
+      display: block;
+    }
+
+    .messages-container .messages .message-informations {
+      display: flex;
+      justify-content: space-between;
+      padding: 0px 10px;
+    }
+
+    .messages-container .messages .message-text::after {
+      position: absolute;
+      content: ' ';
+      border: solid transparent;
+      width: 10px;
+      height: 10px;
+      background-color: #e8f1f3;
+      transform: rotate(45deg);
+    }
+
+    .messages-container .messages .my-message .message-text::after {
+      top: -7px;
+      right: 3%;
+    }
+
+    .messages-container .messages .other-message .message-text::after {
+      top: -7px;
+      left: 2%;
+    }
+
+    .messages-container .messages .my-message {
+      text-align: end;
+      align-self: flex-end;
+    }
+
+    .messages-container .messages .my-message .message-text,
+    .messages-container .messages .other-message .message-text {
+      background-color: #e8f1f3;
+    }
+
+    .messages-container .messages .message span {
+      padding-right: 10px;
+    }
+
+    .messages-container .messages .message .message-text {
+      margin: 15px 0;
+      width: 100%;
+      color: #444;
+      padding: 18px 20px;
+      line-height: 26px;
+      font-size: 16px;
+      border-radius: 7px;
+      display: block;
+      position: relative;
+      text-align: justify;
+    }
+
+    .messages-container .messages .message .message-time,
+    .messages-container .messages .message span {
+      display: inline-block;
+    }
+
+    .messages-container .messages .my-message .message-time {
+      text-align: start;
+      margin-right: 50px;
+      padding-left: 20px;
+    }
+
+    .messages-container .messages .other-message .message-time {
+      text-align: end;
+      margin-left: 50px;
+      padding-right: 20px;
+    }
+
+    .messages-container .messages .other-message {
+      align-self: flex-start;
+    }
+
+    .messages-container .messages .other-message span {
+      padding-left: 10px;
+    }
+
+    button {
+      padding: 15px 25px;
+      border: unset;
+      border-radius: 15px;
+      color: #212121;
+      z-index: 1;
+      background: #e8e8e8;
+      position: relative;
+      font-weight: 1000;
+      font-size: 17px;
+      -webkit-box-shadow: 4px 8px 19px -3px rgba(0, 0, 0, 0.27);
+      box-shadow: 4px 8px 19px -3px rgba(0, 0, 0, 0.27);
+      transition: all 250ms;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 0;
+      border-radius: 15px;
+      background-color: #212121;
+      z-index: -1;
+      -webkit-box-shadow: 4px 8px 19px -3px rgba(0, 0, 0, 0.27);
+      box-shadow: 4px 8px 19px -3px rgba(0, 0, 0, 0.27);
+      transition: all 250ms;
+    }
+
+    button:hover {
+      color: #e8e8e8;
+    }
+
+    button:hover::before {
+      width: 100%;
+    }
+  </style>
+</html>
