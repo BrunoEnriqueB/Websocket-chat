@@ -34,7 +34,7 @@
   </body>
 
   <script>
-    const ws = new WebSocket('ws://localhost:3000');
+    const ws = new WebSocket(`ws:${window.location.host}`);
     const id = Math.random;
     const handlers = {
       'load-all-messages': loadAllMessages,
