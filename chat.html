@@ -34,11 +34,29 @@
   </body>
 
   <script>
-    const ws = new WebSocket(
-      `${window.location.protocol === 'http:' ? 'ws' : 'wss'}:${
-        window.location.host
-      }`
-    );
+    let ws;
+    function connectWebSocket() {
+      ws = new WebSocket(
+        `${window.location.protocol === 'http:' ? 'ws' : 'wss'}:${
+          window.location.host
+        }`
+      );
+      ws.addEventListener('error', console.error);
+
+      ws.addEventListener('open', () => {
+        console.log('Web Socket connected');
+      });
+
+      ws.addEventListener('close', () => {
+        console.log('Web Socket disconnected');
+        setTimeout(() => {
+          this.connectWebSocket();
+        }, 1000);
+      });
+
+      ws.onmessage = receiveEvent;
+    }
+
     const id = Math.random;
     const handlers = {
       'load-all-messages': loadAllMessages,
@@ -63,24 +81,14 @@
           sendMessage();
         }
       });
+
+      connectWebSocket();
     })();
-
-    ws.addEventListener('error', console.error);
-
-    ws.addEventListener('open', () => {
-      console.log('Web Socket connected');
-      emitEvent('new-user');
-    });
-
-    ws.addEventListener('message', receiveEvent);
-
-    ws.addEventListener('close', () => {
-      console.log('Web Socket disconnected');
-    });
 
     function sendMessage() {
       const username = document.getElementById('username').value;
       const newMessage = document.getElementById('new-message');
+      const xH = newMessage.scrollHeight;
 
       if (!username) {
         return window.alert('É necessário preencher o nome');
@@ -95,6 +103,7 @@
       emitEvent('new-message', { username, newMessage: newMessage.value });
 
       newMessage.value = '';
+      newMessage.scrollTo(0, xH);
     }
 
     function emitEvent(eventName, data = {}) {
@@ -143,6 +152,9 @@
 
     function addMessage(container, userId, messageObject) {
       const sameUserId = messageObject.userId === userId;
+      const hasToScroll =
+        sameUserId ||
+        container.scrollHeight === container.scrollTop + container.clientHeight;
       const messageTime = `<div class="message-time">${new Date(
         messageObject.timestamp
       ).toLocaleDateString('pt-BR', {
@@ -154,7 +166,9 @@
         year: 'numeric'
       })}</div>`;
 
-      const messageName = `<span>${messageObject.username}</span>`;
+      const messageName = `<span>${
+        sameUserId ? 'Você' : messageObject.username
+      }</span>`;
 
       const messageText = `<div class="message-text">${messageObject.message}</div>`;
 
@@ -167,7 +181,15 @@
       ${messageText}
       </div>`;
 
-      container.innerHTML += message;
+      if (hasToScroll) {
+        container.innerHTML += message;
+        const xH = container.scrollHeight;
+
+        container.scrollTo(0, xH);
+        return;
+      }
+
+      window.alert('Você tem uma nova mensagem!');
     }
   </script>
 
