@@ -79,31 +79,21 @@ const ws = new Server({
 const allMessages = [];
 
 ws.on('connection', function connection(ws) {
-  console.log(`Web socket is running`);
   ws.on('error', console.error);
 
   ws.on('message', (data) => eventHandler(ws, JSON.parse(data)));
+
+  ws.on('close', (data) => console.log('Client disconnected'));
+
+  emitEvent('load-all-messages', allMessages, ws);
 });
 
+const events = {
+  'new-message': sendMessageForAllCLients
+};
+
 function eventHandler(ws, event) {
-  const { eventName, data, userId } = event;
-
-  if (eventName === 'new-user') {
-    emitEvent('load-all-messages', allMessages, ws);
-  }
-
-  if (eventName === 'new-message') {
-    const newMessage = {
-      userId: userId,
-      message: data.newMessage,
-      username: data.username,
-      timestamp: new Date()
-    };
-
-    allMessages.push(newMessage);
-
-    sendMessageForAllCLients(newMessage);
-  }
+  return events[event.eventName](event, ws);
 }
 
 function emitEvent(eventName, data, client) {
@@ -115,7 +105,18 @@ function emitEvent(eventName, data, client) {
   );
 }
 
-function sendMessageForAllCLients(newMessage) {
+function sendMessageForAllCLients(event) {
+  const { data, userId } = event;
+
+  const newMessage = {
+    userId: userId,
+    message: data.newMessage,
+    username: data.username,
+    timestamp: new Date()
+  };
+
+  allMessages.push(newMessage);
+
   ws.clients.forEach((client) => {
     emitEvent('new-message', newMessage, client);
   });
